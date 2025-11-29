@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -72,7 +73,7 @@
         .chip.active{background:var(--primary-blue);color:white;border-color:var(--primary-blue)}
         
         /* Doctor Card */
-        .doctor-card{background:white;padding:1rem;margin:0 1.25rem 1rem;border-radius:var(--radius-lg);box-shadow:var(--shadow);display:flex;gap:1rem;align-items:center;border:1px solid transparent;transition:0.2s}
+        .doctor-card{background:white;padding:1rem;margin:0 1.25rem 1rem;border-radius:var(--radius-lg);box-shadow:var(--shadow);display:flex;gap:1rem;align-items:center;border:1px solid transparent;transition:0.2s; cursor: pointer;}
         .doctor-card:active{transform:scale(0.98)}
         .doctor-img{width:64px;height:64px;border-radius:var(--radius-full);object-fit:cover;background:var(--sky-blue)}
         .doctor-info{flex:1}
@@ -102,6 +103,7 @@
         /* Doctor Screen Specifics */
         .doctor-dash-header{background:var(--primary-blue);color:white;padding:2rem 1.5rem;border-bottom-left-radius:24px;border-bottom-right-radius:24px}
         .dash-btn{background:white;color:var(--primary-blue);padding:1.5rem;border-radius:var(--radius-lg);margin-bottom:1rem;text-align:center;font-weight:600;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer}
+        .dash-btn p { font-size: 0.8rem; font-weight: 400; color: var(--medium-gray); margin-top: 4px; }
         .dash-btn i{font-size:2rem}
         
         /* Modals */
@@ -109,6 +111,7 @@
         .modal-overlay.show{display:flex}
         .modal-content{background:white;width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:2rem;animation:slideUp 0.3s;max-height:90vh;overflow-y:auto}
         .full-screen-modal{height:100%;border-radius:0;align-items:flex-start}
+        .modal-content-warning { border-top: 5px solid var(--warning); }
         
         /* Interactive Calendar CSS */
         .calendar-container { background: var(--off-white); border-radius: var(--radius-md); padding: 10px; border: 1px solid var(--light-gray); }
@@ -263,7 +266,7 @@
 
                     <div class="input-group"><label>E-mail</label><input type="email" id="regEmail"></div>
                     <div class="input-group"><label>Senha</label><input type="password" id="regPassword"></div>
-                    <div class="input-group"><label>Telefone</label><input type="tel" id="regPhone"></div>
+                    <div class="input-group"><label>Telefone</label><input type="tel" id="regPhone" placeholder="(XX) XXXXX-XXXX"></div>
                     
                     <button class="btn" id="registerBtn">Cadastrar</button>
                     <button class="btn btn-secondary" style="margin-top:10px" onclick="toggleRegister()">Voltar ao Login</button>
@@ -327,6 +330,17 @@
                 <div class="dash-btn" onclick="openAvailabilityModal()">
                     <i class="fas fa-clock"></i>
                     Definir Meus Horários
+                </div>
+                 <!-- NEW CARDS -->
+                <div class="dash-btn" onclick="showPlusUpsellModal()">
+                    <i class="fas fa-rocket"></i>
+                    Impulsionar meus atendimentos
+                    <p>Tenha novos clientes rápido.</p>
+                </div>
+                <div class="dash-btn" onclick="showPlusUpsellModal()">
+                    <i class="fas fa-graduation-cap"></i>
+                    MedFinder Cursos
+                    <p>Aperfeiçoamento de habilidades digitais.</p>
                 </div>
             </div>
         </div>
@@ -462,8 +476,45 @@
                     <p style="grid-column:1/-1;text-align:center;color:#999;font-size:0.9rem">Selecione uma data para ver os horários.</p>
                 </div>
                 
-                <button class="btn" id="confirmScheduleBtn" style="margin-top:1.5rem">Confirmar Agendamento (Pendente)</button>
+                <button class="btn" id="confirmScheduleBtn" style="margin-top:1.5rem">Solicitar consulta</button>
                 <button class="btn btn-secondary" onclick="closeModal('scheduleModal')">Cancelar</button>
+            </div>
+        </div>
+
+        <!-- Doctor Detail Modal -->
+        <div id="doctorDetailModal" class="modal-overlay">
+            <div class="modal-content">
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                    <img id="detailDocImg" class="doctor-img" style="width:80px; height:80px">
+                    <div>
+                        <h3 id="detailDocName" style="font-size: 1.2rem; color: var(--dark-blue);"></h3>
+                        <p id="detailDocSpec" style="color: var(--medium-gray);"></p>
+                        <p id="detailDocCrm" style="color: var(--primary-blue); font-weight: 600; font-size: 0.9rem;"></p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <strong style="color: var(--dark-gray); display: block; margin-bottom: 0.3rem;">Biografia</strong>
+                    <p id="detailDocBio" style="font-size: 0.9rem; line-height: 1.5;"></p>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <strong style="color: var(--dark-gray); display: block; margin-bottom: 0.3rem;">Avaliação</strong>
+                    <div id="detailStars" style="font-size: 1.2rem;"></div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <strong style="color: var(--dark-gray); display: block; margin-bottom: 0.3rem;">Endereço</strong>
+                    <p id="detailDocAddress" style="font-size: 0.9rem;"></p>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <strong style="color: var(--dark-gray); display: block; margin-bottom: 0.3rem;">Valor da Consulta</strong>
+                    <p id="detailDocPrice" style="font-size: 1.1rem; font-weight: 700; color: var(--dark-blue);"></p>
+                </div>
+
+                <button class="btn" onclick="openScheduleModalFromDetail()">Agendar Consulta</button>
+                <button class="btn btn-secondary" onclick="closeModal('doctorDetailModal')">Fechar</button>
             </div>
         </div>
 
@@ -553,6 +604,18 @@
                 <button class="btn" onclick="closeModal('genericModal')">Fechar</button>
             </div>
         </div>
+        
+        <!-- MedFinder PLUS Upsell Modal -->
+        <div id="plusUpsellModal" class="modal-overlay">
+            <div class="modal-content modal-content-warning text-center">
+                <div style="background:rgba(245, 158, 11, 0.1); width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem">
+                    <i class="fas fa-star" style="font-size:2.5rem; color:var(--warning)"></i>
+                </div>
+                <h3 style="margin-bottom:0.5rem">Funcionalidade PLUS</h3>
+                <p style="color:var(--medium-gray); margin-bottom:1.5rem">Poxa.. você ainda não é um membro MedFinder PLUS. Seja um membro e obtenha já essa funcionalidade.</p>
+                <button class="btn btn-warning" onclick="closeModal('plusUpsellModal')">Entendi</button>
+            </div>
+        </div>
 
         <!-- About/Credits Modal -->
         <div id="aboutModal" class="modal-overlay">
@@ -613,7 +676,7 @@
         
         <!-- Pending Approval Modal -->
         <div id="pendingAccountModal" class="modal-overlay">
-            <div class="modal-content" style="text-align:center; border-top: 5px solid var(--warning)">
+            <div class="modal-content modal-content-warning">
                 <div style="background:rgba(245, 158, 11, 0.1); width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem">
                     <i class="fas fa-clock" style="font-size:2.5rem; color:var(--warning)"></i>
                 </div>
@@ -1200,7 +1263,8 @@
             doctors.forEach(doc => {
                 const card = document.createElement('div');
                 card.className = 'doctor-card';
-                const photo = doc.profilePhotoUrl || `https://ui-avatars.com/api/?name=${doc.fullName}&background=random`;
+                card.onclick = () => openDoctorDetailModal(doc.id);
+                const photo = doc.profilePhotoUrl || `https://ui-avatars.com/api/?name=${doc.fullName}&background=dbeafe&color=1d4ed8`;
                 
                 card.innerHTML = `
                     <img src="${photo}" class="doctor-img">
@@ -1214,7 +1278,7 @@
                             <span> • R$ ${doc.price}</span>
                         </div>
                     </div>
-                    <button class="btn" style="width:auto;padding:0.5rem 1rem" onclick="openScheduleModal('${doc.id}')">
+                    <button class="btn" style="width:auto;padding:0.5rem 1rem" onclick="event.stopPropagation(); openScheduleModal('${doc.id}')">
                         <i class="fas fa-calendar-plus"></i>
                     </button>
                 `;
@@ -1222,9 +1286,44 @@
             });
         }
 
+        // --- DOCTOR DETAIL MODAL ---
+        function openDoctorDetailModal(docId) {
+            const doc = doctorsCache.find(d => d.id === docId);
+            if (!doc) return;
+            
+            selectedDocForSchedule = doc; // for "agendar" button inside modal
+
+            const photo = doc.profilePhotoUrl || `https://ui-avatars.com/api/?name=${doc.fullName}&background=dbeafe&color=1d4ed8`;
+
+            document.getElementById('detailDocImg').src = photo;
+            document.getElementById('detailDocName').textContent = `Dr(a). ${doc.fullName}`;
+            document.getElementById('detailDocSpec').textContent = doc.specialty;
+            document.getElementById('detailDocCrm').textContent = `CRM: ${doc.crm}`;
+            document.getElementById('detailDocBio').textContent = doc.bio || 'Nenhuma biografia disponível.';
+            document.getElementById('detailDocAddress').textContent = doc.address.formatted;
+            document.getElementById('detailDocPrice').textContent = `R$ ${doc.price.toFixed(2)}`;
+
+            const starsContainer = document.getElementById('detailStars');
+            starsContainer.innerHTML = '';
+            const rating = Math.round(doc.rating || 0);
+            for (let i = 0; i < 5; i++) {
+                starsContainer.innerHTML += `<i class="fas fa-star" style="color:${i < rating ? 'var(--accent-yellow)' : 'var(--light-gray)'}"></i>`;
+            }
+
+            document.getElementById('doctorDetailModal').classList.add('show');
+        }
+
+        function openScheduleModalFromDetail() {
+            closeModal('doctorDetailModal');
+            if (selectedDocForSchedule) {
+                openScheduleModal(selectedDocForSchedule.id);
+            }
+        }
+
+
         // --- FILTERS ---
         function filterHome(category) {
-            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.categories-scroll .chip').forEach(c => c.classList.remove('active'));
             event.target.classList.add('active');
             if(category === 'Todos') renderDoctorList(doctorsCache, document.getElementById('homeDoctorList'));
             else {
@@ -1349,9 +1448,9 @@
             container.innerHTML = '<div class="text-center">Carregando...</div>';
             
             try {
-                const snapshot = await db.collection('appointments').where('patientId', '==', currentUser.uid).get();
+                const snapshot = await db.collection('appointments').where('patientId', '==', currentUser.uid).orderBy('date', 'desc').get();
                 window.allApps = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-                renderAppointments(window.allApps, 'upcoming');
+                filterAppointments('upcoming');
             } catch(err) {
                 container.innerHTML = 'Sem agendamentos.';
             }
@@ -1361,22 +1460,21 @@
             const container = document.getElementById('appointmentList');
             container.innerHTML = '';
             
-            // Logic: 
-            // Upcoming = Confirmed (Future or Today) 
-            // History = Pending, Cancelled, Completed, Past
-            
-            const todayStr = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-');
+            const today = new Date();
+            today.setHours(0,0,0,0);
             
             let filteredApps;
             if (filter === 'upcoming') {
-                // Shows CONFIRMED appointments that are today or future
-                filteredApps = apps.filter(a => a.status === 'confirmed');
-            } else {
-                // Shows PENDING, CANCELLED, COMPLETED, or anything in past
-                filteredApps = apps.filter(a => a.status === 'pending' || a.status === 'cancelled' || a.status === 'completed');
+                filteredApps = apps.filter(a => {
+                    const appDate = new Date(a.date + 'T00:00:00');
+                    return (a.status === 'confirmed' || a.status === 'pending') && appDate >= today;
+                });
+            } else { // history
+                filteredApps = apps.filter(a => {
+                    const appDate = new Date(a.date + 'T00:00:00');
+                    return a.status === 'cancelled' || a.status === 'completed' || appDate < today;
+                });
             }
-            
-            filteredApps.sort((a,b) => a.date < b.date ? 1 : -1);
 
             if(filteredApps.length === 0) {
                 container.innerHTML = '<div class="text-center" style="padding:2rem;color:var(--medium-gray)">Nenhuma consulta encontrada nesta aba.</div>';
@@ -1389,39 +1487,52 @@
                 const dateParts = app.date.split('-');
                 const displayDate = `${dateParts[2]}/${dateParts[1]} – ${app.time}`;
                 
-                let statusLabel = app.status === 'pending' ? 'Pendente' : app.status === 'confirmed' ? 'Confirmada' : app.status;
-                let statusClass = `status-${app.status}`;
+                let statusLabel = app.status.charAt(0).toUpperCase() + app.status.slice(1);
+                if (statusLabel === 'Pending') statusLabel = 'Pendente';
+                if (statusLabel === 'Confirmed') statusLabel = 'Confirmada';
+                if (statusLabel === 'Cancelled') statusLabel = 'Cancelada';
+                if (statusLabel === 'Completed') statusLabel = 'Concluída';
+
+                let actionButtons = '';
                 
-                let rateBtn = '';
                 // Allow rating if status is confirmed or completed
-                if (app.status === 'confirmed' || app.status === 'completed') {
+                if ((app.status === 'confirmed' || app.status === 'completed') && filter === 'history') {
                     if (app.rated) {
-                        rateBtn = `<button class="btn btn-secondary" disabled style="margin-top:0.5rem;padding:0.5rem;opacity:0.7"><i class="fas fa-check"></i> Avaliado</button>`;
+                        actionButtons += `<button class="btn btn-secondary" disabled style="padding:0.5rem;opacity:0.7"><i class="fas fa-check"></i> Avaliado</button>`;
                     } else {
-                        rateBtn = `<button class="btn btn-outline" style="margin-top:0.5rem;padding:0.5rem" onclick="openRateModal('${app.doctorId}', '${app.doctorName}', '${app.id}')"><i class="fas fa-star"></i> Avaliar</button>`;
+                        actionButtons += `<button class="btn btn-outline" style="padding:0.5rem" onclick="openRateModal('${app.doctorId}', '${app.doctorName}', '${app.id}')"><i class="fas fa-star"></i> Avaliar</button>`;
+                    }
+                }
+                
+                // Add WhatsApp button if confirmed
+                if (app.status === 'confirmed') {
+                    const doctor = doctorsCache.find(d => d.id === app.doctorId);
+                    if (doctor && doctor.phone) {
+                        const phone = doctor.phone.replace(/\D/g, '');
+                        actionButtons += `<a href="https://wa.me/55${phone}" target="_blank" class="btn" style="background:#25D366;text-decoration:none;padding:0.5rem"><i class="fab fa-whatsapp"></i> Contatar Médico</a>`;
                     }
                 }
 
                 div.innerHTML = `
                     <div class="app-date">
                         <span>📅 ${displayDate}</span>
-                        <span class="app-status ${statusClass}">${statusLabel}</span>
+                        <span class="app-status status-${app.status}">${statusLabel}</span>
                     </div>
-                    <div class="app-details">
+                    <div style="display:flex; align-items:center; gap:10px;">
                         <i class="fas fa-user-md" style="font-size:2rem;color:var(--light-blue)"></i>
                         <div>
                             <div style="font-weight:700;color:var(--dark-blue)">Dr(a). ${app.doctorName}</div>
                             <div style="font-size:0.85rem;color:var(--medium-gray)">${app.specialty}</div>
                         </div>
                     </div>
-                    ${rateBtn}
+                    ${actionButtons ? `<div style="margin-top:0.5rem; display:flex; gap:10px; flex-wrap:wrap;">${actionButtons}</div>` : ''}
                 `;
                 container.appendChild(div);
             });
         }
 
         function filterAppointments(type) {
-            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#tab-agenda .type-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
             renderAppointments(window.allApps || [], type);
         }
@@ -1504,7 +1615,7 @@
                 // For this demo, we'll list the appointments history tab.
                 switchTab('agenda');
                 // Click the history button
-                const btns = document.querySelectorAll('.type-btn');
+                const btns = document.querySelectorAll('#tab-agenda .type-btn');
                 if(btns[1]) btns[1].click();
             } else {
                alert('Histórico de avaliações do médico: ' + (userData.rating ? userData.rating.toFixed(1) : '5.0')); 
@@ -1517,7 +1628,7 @@
             const file = this.files[0];
             if (!file) return;
             
-            const btn = this.nextElementSibling;
+            const btn = document.querySelector('button[onclick*="imgUploadInput"]');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
             
             const formData = new FormData();
@@ -1550,7 +1661,6 @@
         async function openEditProfile() {
             document.getElementById('editName').value = userData.fullName || '';
             document.getElementById('editPhoto').value = userData.profilePhotoUrl || '';
-            // document.getElementById('editLocation').value = userData.location || '';
             
             // Populate Address Fields in Edit Mode
             await loadStates('editState');
@@ -1642,6 +1752,10 @@
         function closePlusCard(e) {
             e.stopPropagation();
             document.getElementById('patientPlusCard').style.display = 'none';
+        }
+
+        function showPlusUpsellModal() {
+            document.getElementById('plusUpsellModal').classList.add('show');
         }
 
         // --- DOCTOR: AVAILABILITY MANAGEMENT (INTERACTIVE CALENDAR) ---
@@ -1780,7 +1894,7 @@
                 apps.sort((a,b) => {
                     if(a.status === 'pending' && b.status !== 'pending') return -1;
                     if(a.status !== 'pending' && b.status === 'pending') return 1;
-                    return a.date > b.date ? 1 : -1;
+                    return new Date(a.date) - new Date(b.date);
                 });
 
                 if(apps.length === 0) {
@@ -1805,7 +1919,7 @@
 
                     d.innerHTML = `
                          <div class="app-date">
-                            <span>📅 ${app.date} – ${app.time}</span>
+                            <span>📅 ${app.date.split('-').reverse().join('/')} – ${app.time}</span>
                             <span class="app-status status-${app.status}">${app.status === 'pending' ? 'Pendente' : app.status}</span>
                          </div>
                          <div style="font-weight:600">Paciente: ${app.patientName}</div>
