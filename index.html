@@ -1009,25 +1009,29 @@
                 bottomNav.classList.remove('hidden');
                 switchTab('home');
                 
+                const onDoctorsLoaded = () => {
+                    loadAppointments(); // Sets up the real-time listener which depends on doctorsCache
+                    checkNotifications();
+                };
+
                 // Real Geolocation
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                        (position) => {
+                        async (position) => {
                             userLat = position.coords.latitude;
                             userLng = position.coords.longitude;
-                            loadDoctors(); // Reload with real distances
+                            await loadDoctors(); // Wait for doctors to load
+                            onDoctorsLoaded(); // Then load appointments
                         }, 
-                        (err) => {
+                        async (err) => {
                             console.log("Geolocation error or denied:", err);
-                            loadDoctors(); // Load with mocks/defaults
+                            await loadDoctors(); // Wait for doctors to load
+                            onDoctorsLoaded(); // Then load appointments
                         }
                     );
                 } else {
-                    loadDoctors();
+                    loadDoctors().then(onDoctorsLoaded); // Handle no geolocation case
                 }
-
-                loadAppointments(); // Sets up the real-time listener
-                checkNotifications();
             }
         }
 
@@ -1555,21 +1559,29 @@
 
                 let actionButtons = '';
                 
-                // Allow rating if status is confirmed or completed and it's in history
-                if ((app.status === 'confirmed' || app.status === 'completed') && filter === 'history') {
+                // If the appointment is confirmed, it should have contact and rating options.
+                // This applies to both 'upcoming' and 'history' tabs for consistency.
+                if (app.status === 'confirmed') {
+                    // Contact Button
+                    const doctor = doctorsCache.find(d => d.id === app.doctorId);
+                    if (doctor && doctor.phone) {
+                        const phone = doctor.phone.replace(/\D/g, '');
+                        actionButtons += `<a href="https://wa.me/55${phone}" target="_blank" class="btn" style="background:#25D366;text-decoration:none;padding:0.5rem"><i class="fab fa-whatsapp"></i> Contatar Médico</a>`;
+                    }
+                    
+                    // Rating Button
                     if (app.rated) {
                         actionButtons += `<button class="btn btn-secondary" disabled style="padding:0.5rem;opacity:0.7"><i class="fas fa-check"></i> Avaliado</button>`;
                     } else {
                         actionButtons += `<button class="btn btn-outline" style="padding:0.5rem" onclick="openRateModal('${app.doctorId}', '${app.doctorName}', '${app.id}')"><i class="fas fa-star"></i> Avaliar</button>`;
                     }
                 }
-                
-                // Add WhatsApp button if confirmed
-                if (app.status === 'confirmed') {
-                    const doctor = doctorsCache.find(d => d.id === app.doctorId);
-                    if (doctor && doctor.phone) {
-                        const phone = doctor.phone.replace(/\D/g, '');
-                        actionButtons += `<a href="https://wa.me/55${phone}" target="_blank" class="btn" style="background:#25D366;text-decoration:none;padding:0.5rem"><i class="fab fa-whatsapp"></i> Contatar Médico</a>`;
+                // Also allow rating for appointments marked as 'completed'
+                else if (app.status === 'completed') {
+                     if (app.rated) {
+                        actionButtons += `<button class="btn btn-secondary" disabled style="padding:0.5rem;opacity:0.7"><i class="fas fa-check"></i> Avaliado</button>`;
+                    } else {
+                        actionButtons += `<button class="btn btn-outline" style="padding:0.5rem" onclick="openRateModal('${app.doctorId}', '${app.doctorName}', '${app.id}')"><i class="fas fa-star"></i> Avaliar</button>`;
                     }
                 }
 
