@@ -419,8 +419,8 @@
             <div class="home-header">
                 <h2>Minhas Consultas</h2>
                 <div class="type-toggle" style="margin-top:1rem">
-                    <button class="type-btn active" onclick="filterAppointments('upcoming')">Próximas</button>
-                    <button class="type-btn" onclick="filterAppointments('history')">Histórico</button>
+                    <button class="type-btn active" onclick="filterAppointments('upcoming', this)">Próximas</button>
+                    <button class="type-btn" onclick="filterAppointments('history', this)">Histórico</button>
                 </div>
             </div>
             <div id="appointmentList" style="padding-top:1rem">
@@ -1159,6 +1159,10 @@
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             const navIndex = ['home', 'search', 'agenda', 'profile'].indexOf(tabName);
             document.querySelectorAll('.nav-item')[navIndex].classList.add('active');
+
+            if (tabName === 'agenda') {
+                loadAppointments();
+            }
         }
 
         function hideTabs() {
@@ -1531,9 +1535,18 @@
             });
         }
 
-        function filterAppointments(type) {
+        function filterAppointments(type, clickedElement) {
             document.querySelectorAll('#tab-agenda .type-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+
+            if (clickedElement) {
+                clickedElement.classList.add('active');
+            } else {
+                // Programmatic call from loadAppointments, activate the 'upcoming' button
+                const upcomingBtn = document.querySelector('#tab-agenda .type-btn'); // Gets the first one
+                if (upcomingBtn) {
+                    upcomingBtn.classList.add('active');
+                }
+            }
             renderAppointments(window.allApps || [], type);
         }
 
