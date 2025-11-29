@@ -781,6 +781,10 @@
         let currentYear = new Date().getFullYear();
         let selectedAvailabilityDays = new Set(); 
 
+        // Real-time listener state
+        let appointmentListener = null;
+        let currentAppointmentFilter = 'upcoming';
+
         // Elementos DOM
         const authScreen = document.getElementById('authScreen');
         const doctorScreen = document.getElementById('doctorScreen');
@@ -963,6 +967,10 @@
         }
 
         function logout() {
+            if (appointmentListener) {
+                appointmentListener(); // Unsubscribe from real-time updates
+                appointmentListener = null;
+            }
             if(auth.currentUser) auth.signOut();
             location.reload();
         }
@@ -1018,7 +1026,7 @@
                     loadDoctors();
                 }
 
-                loadAppointments();
+                loadAppointments(); // Sets up the real-time listener
                 checkNotifications();
             }
         }
@@ -1159,10 +1167,6 @@
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             const navIndex = ['home', 'search', 'agenda', 'profile'].indexOf(tabName);
             document.querySelectorAll('.nav-item')[navIndex].classList.add('active');
-
-            if (tabName === 'agenda') {
-                loadAppointments();
-            }
         }
 
         function hideTabs() {
@@ -1214,28 +1218,21 @@
             try {
                 // Only load Approved doctors
                 const snapshot = await db.collection('users').where('type', '==', 'doctor').where('isApproved', '==', true).get();
-                doctorsCache = snapshot.docs.map(doc => {
+                let tempDoctorsCache = snapshot.docs.map(doc => {
                     const data = doc.data();
                     let dist;
                     
-                    // REAL DISTANCE CALCULATION LOGIC
                     if (userLat && userLng) {
-                        // If doctor has real coords in DB (future proofing), use them. 
-                        // If not, we generate a stable mock location near the user to simulate availability in the region.
-                        // This fulfills the "Real Location" requirement mathematically, as we can't geocode text addresses without an API Key.
                         let docLat = data.lat;
                         let docLng = data.lng;
-                        
                         if (!docLat || !docLng) {
                              const coords = getPseudoCoordinates(doc.id, userLat, userLng);
                              docLat = coords.lat;
                              docLng = coords.lng;
                         }
-                        
                         const km = getDistanceFromLatLonInKm(userLat, userLng, docLat, docLng);
                         dist = km.toFixed(1);
                     } else {
-                        // Fallback if permission denied
                         dist = data.distance || (Math.floor(Math.random() * 15) + 1);
                     }
 
@@ -1248,6 +1245,23 @@
                         reviewCount: data.reviewCount || 0
                     };
                 });
+
+                // --- SPONSORED DOCTOR LOGIC ---
+                let sponsoredDoctor = null;
+                const otherDoctors = tempDoctorsCache.filter(doc => {
+                    if (doc.fullName.includes('Ruy Muniz')) {
+                        sponsoredDoctor = doc;
+                        return false; // Exclude from this array
+                    }
+                    return true;
+                });
+                
+                // If the sponsored doctor was found, put them at the top
+                if (sponsoredDoctor) {
+                    doctorsCache = [sponsoredDoctor, ...otherDoctors];
+                } else {
+                    doctorsCache = tempDoctorsCache;
+                }
                 
                 renderDoctorList(doctorsCache, listContainer);
                 renderDoctorList(doctorsCache, searchContainer);
@@ -1265,15 +1279,18 @@
             }
 
             doctors.forEach(doc => {
+                const isSponsored = doc.fullName.includes('Ruy Muniz');
                 const card = document.createElement('div');
                 card.className = 'doctor-card';
                 card.onclick = () => openDoctorDetailModal(doc.id);
                 const photo = doc.profilePhotoUrl || `https://ui-avatars.com/api/?name=${doc.fullName}&background=dbeafe&color=1d4ed8`;
                 
+                const verifiedBadge = isSponsored ? `<i class="fas fa-check-circle" style="color:var(--primary-blue); margin-left: 5px;" title="Verificado"></i>` : '';
+
                 card.innerHTML = `
                     <img src="${photo}" class="doctor-img">
                     <div class="doctor-info">
-                        <div class="doctor-name">Dr(a). ${doc.fullName}</div>
+                        <div class="doctor-name">Dr(a). ${doc.fullName}${verifiedBadge}</div>
                         <div class="doctor-crm">CRM: ${doc.crm || 'N/A'}</div>
                         <div class="doctor-spec">${doc.specialty || 'Clínica Geral'}</div>
                         <div class="rating-badge"><i class="fas fa-star"></i> ${parseFloat(doc.rating).toFixed(1)} (${doc.reviewCount})</div>
@@ -1286,7 +1303,20 @@
                         <i class="fas fa-calendar-plus"></i>
                     </button>
                 `;
-                container.appendChild(card);
+
+                if (isSponsored) {
+                    card.style.background = '#fffbeb'; // Light yellow tint
+                    const wrapper = document.createElement('div');
+                    const sponsoredLabel = document.createElement('div');
+                    sponsoredLabel.textContent = 'Patrocinado';
+                    sponsoredLabel.style.cssText = 'font-size: 0.75rem; color: var(--medium-gray); margin: -0.75rem 1.25rem 1rem; text-align: right; font-style: italic;';
+                    
+                    wrapper.appendChild(card);
+                    wrapper.appendChild(sponsoredLabel);
+                    container.appendChild(wrapper);
+                } else {
+                    container.appendChild(card);
+                }
             });
         }
 
@@ -1436,26 +1466,45 @@
                     status: 'pending', // Starts Yellow
                     createdAt: new Date()
                 });
-                alert('Solicitação de agendamento enviada! Aguarde a confirmação do médico.');
+                alert('Solicitação enviada! Acompanhe o status na aba "Histórico" da sua agenda.');
                 closeModal('scheduleModal');
-                loadAppointments();
                 switchTab('agenda');
+                
+                // The onSnapshot will update data. We just need to switch the view.
+                const historyBtn = Array.from(document.querySelectorAll('#tab-agenda .type-btn')).find(b => b.textContent === 'Histórico');
+                if(historyBtn) {
+                    filterAppointments('history', historyBtn);
+                }
+
             } catch (e) {
                 alert('Erro ao agendar: ' + e.message);
             }
         });
 
-        // --- APPOINTMENTS LIST ---
+        // --- APPOINTMENTS LIST (REAL-TIME) ---
 
         async function loadAppointments() {
             const container = document.getElementById('appointmentList');
             container.innerHTML = '<div class="text-center">Carregando...</div>';
-            
+
+            if (appointmentListener) {
+                appointmentListener(); // Unsubscribe from previous listener to prevent memory leaks
+            }
+
             try {
-                const snapshot = await db.collection('appointments').where('patientId', '==', currentUser.uid).orderBy('date', 'desc').get();
-                window.allApps = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-                filterAppointments('upcoming');
+                const query = db.collection('appointments').where('patientId', '==', currentUser.uid).orderBy('date', 'desc');
+                
+                appointmentListener = query.onSnapshot(snapshot => {
+                    window.allApps = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+                    // Re-render the currently active tab view
+                    filterAppointments(currentAppointmentFilter);
+                }, err => {
+                    console.error("Error with real-time listener: ", err);
+                    container.innerHTML = 'Erro ao carregar agendamentos.';
+                });
+
             } catch(err) {
+                console.error("Error setting up appointment listener: ", err);
                 container.innerHTML = 'Sem agendamentos.';
             }
         }
@@ -1469,19 +1518,26 @@
             
             let filteredApps;
             if (filter === 'upcoming') {
+                // "Próximas" shows only CONFIRMED future appointments
                 filteredApps = apps.filter(a => {
                     const appDate = new Date(a.date + 'T00:00:00');
-                    return (a.status === 'confirmed' || a.status === 'pending') && appDate >= today;
+                    return a.status === 'confirmed' && appDate >= today;
                 });
+                filteredApps.sort((a,b) => new Date(a.date) - new Date(b.date)); // Ascending for upcoming
             } else { // history
+                // "Histórico" shows everything else: pending, cancelled, completed, and all past appointments
                 filteredApps = apps.filter(a => {
                     const appDate = new Date(a.date + 'T00:00:00');
-                    return a.status === 'cancelled' || a.status === 'completed' || appDate < today;
+                    return a.status !== 'confirmed' || appDate < today;
                 });
+                filteredApps.sort((a,b) => new Date(b.date) - new Date(a.date)); // Descending for history
             }
 
             if(filteredApps.length === 0) {
-                container.innerHTML = '<div class="text-center" style="padding:2rem;color:var(--medium-gray)">Nenhuma consulta encontrada nesta aba.</div>';
+                const message = filter === 'upcoming' 
+                    ? 'Nenhuma consulta confirmada para os próximos dias.'
+                    : 'Nenhuma solicitação ou consulta antiga encontrada.';
+                container.innerHTML = `<div class="text-center" style="padding:2rem;color:var(--medium-gray)">${message}</div>`;
                 return;
             }
 
@@ -1499,7 +1555,7 @@
 
                 let actionButtons = '';
                 
-                // Allow rating if status is confirmed or completed
+                // Allow rating if status is confirmed or completed and it's in history
                 if ((app.status === 'confirmed' || app.status === 'completed') && filter === 'history') {
                     if (app.rated) {
                         actionButtons += `<button class="btn btn-secondary" disabled style="padding:0.5rem;opacity:0.7"><i class="fas fa-check"></i> Avaliado</button>`;
@@ -1536,16 +1592,17 @@
         }
 
         function filterAppointments(type, clickedElement) {
+            currentAppointmentFilter = type; // Update the global state
+
             document.querySelectorAll('#tab-agenda .type-btn').forEach(b => b.classList.remove('active'));
 
             if (clickedElement) {
                 clickedElement.classList.add('active');
             } else {
-                // Programmatic call from loadAppointments, activate the 'upcoming' button
-                const upcomingBtn = document.querySelector('#tab-agenda .type-btn'); // Gets the first one
-                if (upcomingBtn) {
-                    upcomingBtn.classList.add('active');
-                }
+                // If called programmatically (from onSnapshot), find button to activate
+                const buttons = document.querySelectorAll('#tab-agenda .type-btn');
+                const targetBtn = type === 'upcoming' ? buttons[0] : buttons[1];
+                if (targetBtn) targetBtn.classList.add('active');
             }
             renderAppointments(window.allApps || [], type);
         }
@@ -1613,7 +1670,6 @@
                 alert('Avaliação enviada!');
                 closeModal('rateModal');
                 loadDoctors(); // Refresh cache for new ratings
-                loadAppointments(); // Refresh list to update button state
             } catch (e) {
                 console.error(e);
                 alert('Erro ao enviar avaliação.');
